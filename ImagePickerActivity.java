@@ -45,19 +45,13 @@ import com.simons.owner.traffickcam2.R;
 import java.io.IOException;
 import java.util.ArrayList;
 
-public class ImagePickerActivity extends AppCompatActivity implements
-      CompoundButton.OnCheckedChangeListener {
+public class ImagePickerActivity extends AppCompatActivity{
 
-  /**
-   * Returns the parcelled image uris in the intent with this extra.
-   */
+  /**  Returns the parcelled image uris in the intent with this extra. **/
   public static final String EXTRA_IMAGE_URIS = "image_uris";
-  // initialize with default config.
-  private static Config mConfig = new Config();
 
-  /**
-   * Key to persist the list when saving the state of the activity.
-   */
+  /** Activity configuration initializes with default settings. **/
+  private static Config configuration = new Config();
 
   /** Hotel images taken by the user to be uploaded and submitted to the TC server **/
   public ArrayList<Uri> selectedImages;
@@ -66,7 +60,7 @@ public class ImagePickerActivity extends AppCompatActivity implements
   protected Toolbar toolbar;
 
   /** Major body of ImagePickerActivity GUI **/
-  View mainViewRot;
+  View mainViewRoot;
 
   /** Message to let uses know they haven't selected any photos **/
   TextView selectedImageEmptyView;
@@ -92,33 +86,10 @@ public class ImagePickerActivity extends AppCompatActivity implements
   /** Adapter to help handle selected photos **/
   Adapter_SelectedPhoto selectedPhotoAdapter;
 
-  /********************************
-   * VERSION 2 VARIABLES
-   ********************************/
-  /**
-   * AlertDialog that opens up after a photo has been selected so that users may identify
-   * what items are in their photo.
-   */
-  AlertDialog imageClassificationDialog;
-
-  /** Checkboxes for checking which pre-listed items are in the selected photo **/
-  CheckBox checkBoxes[];
-
-  /** Preview of image most recently taken to help user select items **/
-  ImageView selectItemsImagePreview;
-
-  /** Loading bar displays when selectItemsImagePreview is loading **/
-  ProgressBar imageLoadingBar;
-
-  /** Uri file for latest selected photo **/
-  public Uri newestUri = null;
-
-  /** Edit text that allows users to specify other items in their selected photo **/
-  EditText unlistedHotelItemEditText;
 
   /** Returns configuration settings.**/
   public static Config getConfig() {
-        return mConfig;
+        return configuration;
     }
 
   /**
@@ -129,25 +100,15 @@ public class ImagePickerActivity extends AppCompatActivity implements
     if (config == null) {
       throw new NullPointerException("Config cannot be passed null. Not setting config will use default values.");
     }
-    mConfig = config;
+    configuration = config;
   }
 
-  /**
-   * @param savedInstanceState
-   *
-   * Called when an instance of ImagePickerActivity is first run.
-   * Calls to initialize most views and user-side components of the activity
-   * Also checks that TraffickCam has permission to read external storage and
-   * requests permission if that permission is not currently granted
-   */
   @Override
   protected void onCreate(Bundle savedInstanceState) {
     super.onCreate(savedInstanceState);
     setupFromSavedInstanceState(savedInstanceState);
     setContentView(com.simons.owner.traffickcam2.R.layout.picker_activity_main_pp);
-    initView();
-    makeDialogue();
-    setTitle(mConfig.getToolbarTitleRes());
+    setTitle(configuration.getToolbarTitleRes());
 
     setupTabs();
     setSelectedPhotoRecyclerView();
@@ -156,121 +117,6 @@ public class ImagePickerActivity extends AppCompatActivity implements
      != PackageManager.PERMISSION_GRANTED) {
       ActivityCompat.requestPermissions(this, new String[]{
           Manifest.permission.READ_EXTERNAL_STORAGE}, 1);
-    }
-  }
-
-  public ImageView getImageView() {
-    return selectItemsImagePreview;
-  }
-
-  private void makeDialogue() {
-
-    AlertDialog.Builder builder = new AlertDialog.Builder(this);
-    LayoutInflater factory = LayoutInflater.from(ImagePickerActivity.this);
-    View view = factory.inflate(R.layout.alert_dialog, null);
-    selectItemsImagePreview = (ImageView) view.findViewById(R.id.dialog_imageview);
-    selectItemsImagePreview.setVisibility(View.INVISIBLE);
-    unlistedHotelItemEditText = (EditText) view.findViewById(R.id.Other);
-    unlistedHotelItemEditText.setEnabled(false);
-
-    checkBoxes = new CheckBox[8];
-    checkBoxes[0] = (CheckBox) view.findViewById(R.id.checkBox0);
-    checkBoxes[1] = (CheckBox) view.findViewById(R.id.checkBox1);
-    checkBoxes[2] = (CheckBox) view.findViewById(R.id.checkBox2);
-    checkBoxes[3] = (CheckBox) view.findViewById(R.id.checkBox3);
-    checkBoxes[4] = (CheckBox) view.findViewById(R.id.checkBox4);
-    checkBoxes[5] = (CheckBox) view.findViewById(R.id.checkBox5);
-    checkBoxes[6] = (CheckBox) view.findViewById(R.id.checkBox6);
-    checkBoxes[7] = (CheckBox) view.findViewById(R.id.checkBox7);
-
-    checkBoxes[0].setOnCheckedChangeListener(this);
-    checkBoxes[1].setOnCheckedChangeListener(this);
-    checkBoxes[2].setOnCheckedChangeListener(this);
-    checkBoxes[3].setOnCheckedChangeListener(this);
-    checkBoxes[4].setOnCheckedChangeListener(this);
-    checkBoxes[5].setOnCheckedChangeListener(this);
-    checkBoxes[6].setOnCheckedChangeListener(this);
-    checkBoxes[7].setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener()
-    {
-      @Override
-      public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-        if(isChecked) {
-          unlistedHotelItemEditText.setEnabled(true);
-          setEnabledPositiveButton(true);
-          }
-          else
-          unlistedHotelItemEditText.setEnabled(false);
-        if (!isLabeled())
-          setEnabledPositiveButton(false);
-        }
-    });
-    imageLoadingBar = (ProgressBar) view.findViewById(R.id.progressBar);
-    imageLoadingBar.setVisibility(View.VISIBLE);
-
-    // implement button listeners within the dialog
-    builder.setTitle("Are any of these items in this photo?")
-      .setView(view)
-      .setPositiveButton("CONFIRM", new DialogInterface.OnClickListener(){
-        @Override
-        public void onClick(DialogInterface dialog, int which) {
-          //if(newestUri!= null) addImage(newestUri);
-          imageLoadingBar.setVisibility(View.VISIBLE);
-          selectItemsImagePreview.setVisibility(View.INVISIBLE);
-          }
-      })
-      .setNegativeButton("CANCEL", new DialogInterface.OnClickListener() {
-        @Override
-        public void onClick(DialogInterface dialog, int which) {
-          if (newestUri != null) removeImage(newestUri);
-          imageLoadingBar.setVisibility(View.VISIBLE);
-          selectItemsImagePreview.setVisibility(View.INVISIBLE);
-        }
-      });
-
-    // create the dialog itself
-    imageClassificationDialog = builder.create();
-
-    // apply listener for touches outside the dialog box to remove any added image
-    imageClassificationDialog.setOnCancelListener(
-      new DialogInterface.OnCancelListener() {
-        @Override
-        public void onCancel(DialogInterface dialog) {
-          if (newestUri != null) removeImage(newestUri);
-          }
-      }
-    );
-  }
-
-  private void initView() {
-    toolbar = (Toolbar) findViewById(com.simons.owner.traffickcam2.R.id.toolbar);
-    setSupportActionBar(toolbar);
-
-    mainViewRot = findViewById(com.simons.owner.traffickcam2.R.id.view_root);
-    nonselectedImagesViewPager = (ViewPager) findViewById(com.simons.owner.traffickcam2.R.id.pager);
-    tabLayout = (TabLayout) findViewById(com.simons.owner.traffickcam2.R.id.tab_layout);
-    selectedPhotosTitleTextView = (TextView) findViewById(com.simons.owner.traffickcam2.R.id.tv_selected_title);
-    selectedPhotosRecyclerView = (RecyclerView) findViewById(com.simons.owner.traffickcam2.R.id.rc_selected_photos);
-    selectedImageEmptyView = (TextView) findViewById(com.simons.owner.traffickcam2.R.id.selected_photos_empty);
-    selectedPhotosContainerView = findViewById(com.simons.owner.traffickcam2.R.id.view_selected_photos_container);
-
-    selectedPhotosContainerView.getViewTreeObserver().addOnPreDrawListener(new ViewTreeObserver.OnPreDrawListener() {
-      @Override
-      public boolean onPreDraw() {
-        selectedPhotosContainerView.getViewTreeObserver().removeOnPreDrawListener(this);
-
-        int selected_bottom_size = (int) getResources().getDimension(mConfig.getSelectedBottomHeight());
-
-        ViewGroup.LayoutParams params = selectedPhotosContainerView.getLayoutParams();
-        params.height = selected_bottom_size;
-        selectedPhotosContainerView.setLayoutParams(params);
-        return true;
-      }
-    });
-
-
-    if (mConfig.getSelectedBottomColor() > 0) {
-      selectedPhotosTitleTextView.setBackgroundColor(ContextCompat.getColor(this, mConfig.getSelectedBottomColor()));
-      selectedImageEmptyView.setTextColor(ContextCompat.getColor(this, mConfig.getSelectedBottomColor()));
     }
   }
 
@@ -300,12 +146,12 @@ public class ImagePickerActivity extends AppCompatActivity implements
     nonselectedImagesViewPager.setAdapter(adapter);
     tabLayout.setupWithViewPager(nonselectedImagesViewPager);
 
-    if (mConfig.getTabBackgroundColor() > 0)
-      tabLayout.setBackgroundColor(ContextCompat.getColor(this, mConfig.getTabBackgroundColor()));
+    if (configuration.getTabBackgroundColor() > 0)
+      tabLayout.setBackgroundColor(ContextCompat.getColor(this, configuration.getTabBackgroundColor()));
 
-    if (mConfig.getTabSelectionIndicatorColor() > 0)
+    if (configuration.getTabSelectionIndicatorColor() > 0)
       tabLayout.setSelectedTabIndicatorColor(
-          ContextCompat.getColor(this, mConfig.getTabSelectionIndicatorColor()));
+          ContextCompat.getColor(this, configuration.getTabSelectionIndicatorColor()));
   }
 
   private void setSelectedPhotoRecyclerView() {
@@ -316,7 +162,7 @@ public class ImagePickerActivity extends AppCompatActivity implements
     selectedPhotosRecyclerView.addItemDecoration(new SpacesItemDecoration(Util.dpToPx(this, 5), SpacesItemDecoration.TYPE_VERTICAL));
     selectedPhotosRecyclerView.setHasFixedSize(true);
 
-    int closeImageRes = mConfig.getSelectedCloseImage();
+    int closeImageRes = configuration.getSelectedCloseImage();
 
     selectedPhotoAdapter = new Adapter_SelectedPhoto(this, closeImageRes);
     selectedPhotoAdapter.updateItems(selectedImages);
@@ -336,37 +182,9 @@ public class ImagePickerActivity extends AppCompatActivity implements
      return (GalleryFragment) adapter.getItem(1);
   }
 
-  public void showDialog()
-  {
-    imageLoadingBar.setVisibility(View.VISIBLE);
-    selectItemsImagePreview.setVisibility(View.INVISIBLE);
-    clearCheckboxes();
-    imageClassificationDialog.show();
-    setEnabledPositiveButton(false);
-  }
-
-    public void setUri(final Uri uri)
-    {
-      selectItemsImagePreview.setImageURI(uri);
-        imageLoadingBar.setVisibility(View.INVISIBLE);
-
-        // re-orient selected image to counter image rotation bug
-        int orientation = 0;
-        try {
-            assert uri != null;
-            orientation = getImageRotation(this, uri);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-      selectItemsImagePreview.setRotation(orientation);
-      selectItemsImagePreview.setVisibility(View.VISIBLE);
-    }
-
   public void addImage(final Uri uri) {
-    newestUri = uri;
-    setUri(uri);
-    if (selectedImages.size() == mConfig.getSelectionLimit()) {
-      String text = String.format(getResources().getString(com.simons.owner.traffickcam2.R.string.max_count_msg), mConfig.getSelectionLimit());
+    if (selectedImages.size() == configuration.getSelectionLimit()) {
+      String text = String.format(getResources().getString(com.simons.owner.traffickcam2.R.string.max_count_msg), configuration.getSelectionLimit());
       Toast.makeText(this, text, Toast.LENGTH_SHORT).show();
       return;
     }
@@ -381,21 +199,21 @@ public class ImagePickerActivity extends AppCompatActivity implements
     selectedPhotosRecyclerView.smoothScrollToPosition(selectedPhotoAdapter.getItemCount()-1);
   }
 
-    // get orientation info either from EXIF OR the Media object (a more robust solution)
-    public static int getImageRotation(Context context, Uri imageUri) {
-        try {
-            ExifInterface exif = new ExifInterface(imageUri.getPath());
-            int rotation = exif.getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_UNDEFINED);
+  // get orientation info either from EXIF OR the Media object (a more robust solution)
+  public static int getImageRotation(Context context, Uri imageUri) {
+    try {
+      ExifInterface exif = new ExifInterface(imageUri.getPath());
+      int rotation = exif.getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_UNDEFINED);
 
-            if (rotation == ExifInterface.ORIENTATION_UNDEFINED)
-                return getRotationFromMediaStore(context, imageUri);
-            else return exifToDegrees(rotation);
-        } catch (IOException e) {
-            return 0;
-        }
+      if (rotation == ExifInterface.ORIENTATION_UNDEFINED)
+        return getRotationFromMediaStore(context, imageUri);
+      else return exifToDegrees(rotation);
+    } catch (IOException e) {
+      return 0;
     }
+  }
 
-    // get orientation from the EXIF inf
+  // get orientation from the EXIF inf
   private static int exifToDegrees(int exifOrientation) {
     if (exifOrientation == ExifInterface.ORIENTATION_ROTATE_90) {
       return 90;
@@ -417,27 +235,6 @@ public class ImagePickerActivity extends AppCompatActivity implements
     cursor.moveToFirst();
     int orientationColumnIndex = cursor.getColumnIndex(columns[1]);
       return cursor.getInt(orientationColumnIndex);
-  }
-
-  private void setEnabledPositiveButton(boolean labelCheck) {
-    imageClassificationDialog.getButton(AlertDialog.BUTTON_POSITIVE)
-        .setEnabled(labelCheck);
-  }
-
-  private void clearCheckboxes()
-  {
-    int n = checkBoxes.length;
-    for(int i = 0; i < n; i++) {
-      if (checkBoxes[i].isChecked()) checkBoxes[i].setChecked(false);
-    }
-  }
-
-  private boolean isLabeled() {
-    boolean isLabeled = false;
-    int checkBoxCount = checkBoxes.length;
-    for (int i = 0; i < checkBoxCount && isLabeled != true; ++i)
-      if (checkBoxes[i].isChecked()) isLabeled = true;
-    return isLabeled;
   }
 
   public void removeImage(Uri uri) {
@@ -500,14 +297,5 @@ public class ImagePickerActivity extends AppCompatActivity implements
         GalleryFragment.mGalleryAdapter.notifyDataSetChanged();
       }
     }
-  }
-
-  @Override
-  public void onCheckedChanged(CompoundButton compoundButton, boolean isChecked) {
-    if (isChecked)
-      setEnabledPositiveButton(true);
-    else
-      if (!isLabeled())
-        setEnabledPositiveButton(false);
   }
 }
